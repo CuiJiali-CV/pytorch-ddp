@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="WebServers">
+    <option name="servers">
+      <webServer id="ce73db28-d92a-4e03-9f93-3e1fae37373f" name="old_server_pytorch_ddp">
+        <fileTransfer rootFolder="/data6/jcui7/github/pytorch-ddp" accessType="SFTP" host="155.246.89.214" port="22" sshConfigId="5d3c2fc8-5e94-4493-8dc5-8b2f631130a7" sshConfig="old server">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" passiveMode="true" shareSSLContext="true" />
+          </advancedOptions>
+        </fileTransfer>
+      </webServer>
+    </option>
+  </component>
+</project>

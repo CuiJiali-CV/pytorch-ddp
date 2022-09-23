@@ -3,7 +3,7 @@ import logging
 import sys
 import pickle
 import time
-
+import datetime
 def save_args(output_dir, args):
     with open(output_dir + 'config.txt', 'w') as fp:
         for key in args:
@@ -20,6 +20,18 @@ def save_file(output_dir, file_name):
     file_out = open(output_dir + 'code/' + os.path.basename(file_name), 'w')
     for line in file_in:
         file_out.write(line)
+
+def get_output_dir(file, add_datetime=True, added_directory=None):
+    output_dir = './{}/'.format(os.path.splitext(os.path.basename(file))[0])
+
+    if added_directory is not None:
+        output_dir += added_directory + '/'
+
+    t = datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
+    if add_datetime:
+        output_dir += t + '/'
+
+    return output_dir
 
 class Logger(object):
     def __init__(self, save, rank=0):

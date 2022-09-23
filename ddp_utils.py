@@ -1,6 +1,7 @@
 import torch.distributed as dist
 import torch
 from torch.nn.parallel import DistributedDataParallel
+import torch.multiprocessing as mp
 
 def check_nan(tensor, nprocs):
     def stop_condition(t):
