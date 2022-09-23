@@ -9,7 +9,7 @@ def get_dataset(dataset, args):
 
     img_size = args['img_size']
     normalize = args['normalize_data']
-
+    batch_size = args['batch_size']
     if dataset == 'cifar10':
         if normalize:
             transform = transforms.Compose(
@@ -32,19 +32,20 @@ def get_dataset(dataset, args):
     else:
         train_sampler, valid_sampler = None, None
 
-    train_dl = DataLoader(train_ds, batch_size=args.batch_size,
+    train_dl = DataLoader(train_ds, batch_size=batch_size,
                     shuffle=(train_sampler is None),
                     sampler=train_sampler,
                     pin_memory=True,
                     num_workers=0,
                     drop_last=True)
 
-    valid_dl = DataLoader(valid_ds, batch_size=args.batch_size,
+    valid_dl = DataLoader(valid_ds, batch_size=batch_size,
                     shuffle=(train_sampler is None),
                     sampler=valid_sampler,
                     pin_memory=True,
                     num_workers=0,
                     drop_last=False)
+
     return train_dl, valid_dl
 
 
