@@ -80,7 +80,10 @@ def train(netG, netI, optG, optI, train_dl, logging, args):
 
         train_dl.sampler.set_epoch(global_step)
 
-        train_step(netG, netI, optG, optI, train_dl, logging, args)
+        Broken = train_step(netG, netI, optG, optI, train_dl, logging, args)
+
+        if Broken:
+            return
 
         if ep % args['vis_iter'] == 0 and args['local_rank'] == 0:
             syn1 = netG(fix_z)
