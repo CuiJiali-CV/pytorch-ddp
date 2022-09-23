@@ -9,3 +9,8 @@ def count_parameters_in_M(model):
 
 def save_ckpt(state_dict, save_path):
     torch.save(state_dict, save_path)
+
+def requires_grad(model, flag=True):
+    params = model.parameters()
+    for p in params:
+        p.requires_grad = flag

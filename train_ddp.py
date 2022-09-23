@@ -3,47 +3,21 @@ from vis_utils import *
 from ddp_utils import *
 from torch_utils import *
 from nets import _netG, _netI
+from fid_utils import get_fid
 from datasets import get_dataset
 import argparse
 from torch.distributions import Normal
 mse = torch.nn.MSELoss(reduction='none')
 os.environ["CUDA_VISIBLE_DEVICES"] = "2,3"
-def get_fid(sample_fn, args):
-    fid_stat_dir = '/data6/jcui7/nvae/data/fid_stat/cifar10/fid_stats_cifar10_train.npz' # download
-    fid_size = 50000
-    batch_size = args['batch_size']
-
-    n_batch = int((fid_size // batch_size) // args['nprocs'])
-
-    if args['local_rank'] == 0:  # print rank 0 progress
-        count = tqdm(range(n_batch))
-    else:
-        count = range(n_batch)
-
-    to_range_0_1 = lambda x: (x + 1.) / 2. if args['normalize_data'] else x
-
-    s = []
-    for _ in count:
-        sample = to_range_0_1(sample_fn()).clamp(min=0., max=1.)
-        s.append(sample)
-
-    s = torch.cat(s)
-
-    dist.barrier()
-
-    s_gather = gather(s, args['nprocs'])
-
-    if args['local_rank'] == 0:
-        from pytorch_fid_jcui7.fid_score import compute_fid
-        s = torch.cat(s_gather, dim=0)
-        fid = compute_fid(x_train=None, x_samples=s, path=fid_stat_dir)
-        return fid
-    else:
-        return math.inf
 
 def train_step(netG, netI, optG, optI, train_dl, logging, args):
     Broken = False
     log_iter = 100
+
+    netG.train(), netI.train()
+    requires_grad(netG, True)
+    requires_grad(netI, True)
+
     for b, x in enumerate(train_dl):
         x = x[0] if len(x) > 1 else x
         x = x.cuda(args['local_rank'])
@@ -72,11 +46,21 @@ def train_step(netG, netI, optG, optI, train_dl, logging, args):
             return Broken
 
         loss.backward()
+
+        dist.barrier()
+
+        average_gradients(netG.parameters(), args['distributed'])
+        average_gradients(netI.parameters(), args['distributed'])
+
         optG.step()
         optI.step()
 
         if b % log_iter == 0:
             logging.info(f"batch {b}/{len(train_dl)} recon loss : {rec:.3f} || kl : {kl:.3f}")
+
+    netG.eval(), netI.eval(),
+    requires_grad(netG, False)
+    requires_grad(netI, False)
 
     return Broken
 
@@ -92,22 +76,25 @@ def train(netG, netI, optG, optI, train_dl, logging, args):
 
     for ep in range(args['epochs']):
 
+        logging.info("=="*15 + f" epoch {ep}/{args['epochs']} best fid: {fid_best:.4f} at epoch {fid_best_ep}")
+
         train_dl.sampler.set_epoch(global_step)
 
         train_step(netG, netI, optG, optI, train_dl, logging, args)
 
         if ep % args['vis_iter'] == 0 and args['local_rank'] == 0:
-            z1_p = torch.randn((args['batch_size'], args['z1_dim'])).cuda(args['local_rank'])
-            syn = netG(z1_p)
+            syn1 = netG(fix_z)
+            show_single_batch(syn1, args['save'] + f'imgs/syn-fix-{ep:>07d}.png', nrow=10)
 
-            show_single_batch(syn, args['save'] + f'imgs/syn-{ep:>07d}.png', nrow=10)
+            z1_p = torch.randn((args['batch_size'], args['z1_dim'])).cuda(args['local_rank'])
+            syn2 = netG(z1_p)
+            show_single_batch(syn2, args['save'] + f'imgs/syn-random-{ep:>07d}.png', nrow=10)
 
             z1_q_mu, z1_q_sig = netI(fix_x)
             q_dist = Normal(z1_q_mu, z1_q_sig)
             z1_q = q_dist.sample()
             x_rec = netG(z1_q)
             show_single_batch(x_rec, args['save'] + f'imgs/rec-{ep:>07d}.png', nrow=10)
-
 
         if ep % args['n_metric'] == 0 and ep >= args['n_start'] and args['compute_fid']:
             def sample_x():
@@ -194,14 +181,14 @@ if __name__ == '__main__':
     parser.add_argument("--dataset", type=str, default="cifar10")
     parser.add_argument("--img_size", type=int, default=32)
     parser.add_argument("--normalize_data", type=int, default=1)
-    parser.add_argument('--batch_size', '--batch-size', default=32, type=int)# cifar
+    parser.add_argument('--batch_size', default=100, type=int)
 
     parser.add_argument("--epochs", type=int, default=200)
     parser.add_argument("--vis_iter", type=int, default=1)
 
-    parser.add_argument("--compute_fid", type=int, default=0)
-    parser.add_argument("--n_start", type=int, default=5)
-    parser.add_argument("--n_metric", type=int, default=1)
+    parser.add_argument("--compute_fid", type=int, default=1)
+    parser.add_argument("--n_start", type=int, default=0)
+    parser.add_argument("--n_metric", type=int, default=5)
 
     parser.add_argument("--g_lr", type=float, default=3e-4)
     parser.add_argument("--i_lr", type=float, default=3e-4)
