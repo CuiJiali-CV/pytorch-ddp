@@ -6,7 +6,6 @@ import torch.multiprocessing as mp
 def check_nan(tensor, nprocs):
     def stop_condition(t):
         return torch.isnan(tensor) or torch.isnan(tensor) or tensor.item() > 1e9 or tensor.item() < -1e9
-
     return [stop_condition(t) for t in gather(tensor, nprocs=nprocs)]
 
 
