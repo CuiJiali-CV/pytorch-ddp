@@ -1,3 +1,4 @@
 # pytorch-ddp
 
-### Training VAE on Cifar10 with multi-GPUs.
+### DEMO for using pytorch with multi-GPU.
+### DEMO for training VAE on CIFAR10.
